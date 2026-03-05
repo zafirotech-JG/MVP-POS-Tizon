@@ -32,7 +32,7 @@ HEADERS_VENTAS = [
 
 def _get_client() -> gspread.Client:
     """Retorna un cliente autenticado de gspread."""
-    credentials_path = os.getenv("CREDENTIALS_PATH", "credentials/service_account.json")
+    credentials_path = os.getenv("CREDENTIALS_PATH", "service_account.json")
     creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
     return gspread.authorize(creds)
 
