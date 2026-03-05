@@ -3,7 +3,7 @@
  * Centraliza todas las llamadas fetch hacia el backend FastAPI.
  */
 
-const BASE_URL = ""; // vacío = mismo origen (FastAPI sirve el frontend)
+const BASE_URL = "https://tizon-mvp.up.railway.app"; // vacío = mismo origen (FastAPI sirve el frontend)
 
 async function request(method, path, body = null) {
     const options = {
