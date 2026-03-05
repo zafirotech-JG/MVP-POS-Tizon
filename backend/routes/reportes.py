@@ -1,14 +1,19 @@
 """
 Rutas de Reportes — Dashboard y cierre de caja diario
 """
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from datetime import date
 from collections import defaultdict
 
 from backend.models import ReporteDia, ReporteProducto, ResumenCaja
 from backend import sheets
+from backend.auth import get_current_user
 
-router = APIRouter(prefix="/api/reportes", tags=["Reportes"])
+router = APIRouter(
+    prefix="/api/reportes", 
+    tags=["Reportes"],
+    dependencies=[Depends(get_current_user)]
+)
 
 METODOS_PAGO = ["Efectivo", "Nequi", "Daviplata", "Tarjeta"]
 

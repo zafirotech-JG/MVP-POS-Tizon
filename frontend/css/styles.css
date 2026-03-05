@@ -320,6 +320,33 @@ body {
   }
 }
 
+/* ── Skeleton Loaders ── */
+@keyframes skeleton-pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s infinite ease-in-out;
+  background: var(--bg-card-hover) !important;
+  border-color: transparent !important;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.skeleton * {
+  visibility: hidden;
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    BUTTONS
    ════════════════════════════════════════════════════════════════════════ */
@@ -1102,4 +1129,54 @@ tr:hover td {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   LOGIN OVERLAY
+   ════════════════════════════════════════════════════════════════════════ */
+.login-overlay {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  background: var(--bg-base);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.login-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.login-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 40px 30px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  transform: translateY(20px);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.login-overlay.visible .login-card {
+  transform: translateY(0);
+}
+
+.login-logo {
+  margin-bottom: 32px;
+}
+
+.login-logo h1 {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

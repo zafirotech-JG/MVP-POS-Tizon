@@ -1,11 +1,16 @@
 """
 Rutas de Productos — CRUD completo
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from backend.models import ProductoCreate, ProductoOut
 from backend import sheets
+from backend.auth import get_current_user
 
-router = APIRouter(prefix="/api/productos", tags=["Productos"])
+router = APIRouter(
+    prefix="/api/productos", 
+    tags=["Productos"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("/", response_model=list[ProductoOut])

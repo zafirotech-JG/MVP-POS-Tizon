@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from backend.routes import productos, ventas, reportes
+from backend.routes import auth, productos, ventas, reportes
 
 app = FastAPI(
     title="Tizón V1 — POS API",
@@ -25,6 +25,7 @@ app.add_middleware(
 )
 
 # ── Rutas API ────────────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(productos.router)
 app.include_router(ventas.router)
 app.include_router(reportes.router)

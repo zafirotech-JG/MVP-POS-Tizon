@@ -7,17 +7,23 @@ import { showToast, formatCOP } from "./utils.js";
 
 let productoEditandoId = null;
 
-export async function initInventario() {
-    await cargarTabla();
+export function initInventario() {
     bindEventos();
+    cargarTabla(); // Non-blocking
 }
 
 async function cargarTabla() {
+    const tbody = document.getElementById("tabla-productos-body");
+    if (tbody && (!tbody.children.length || tbody.innerHTML.includes("Cargando"))) {
+        tbody.innerHTML = Array(4).fill('<tr class="skeleton"><td>Cargando...</td><td>...</td><td>...</td><td>...</td></tr>').join('');
+    }
+
     try {
         const productos = await API.productos.listar();
         renderTabla(productos);
     } catch (err) {
         showToast(`Error cargando inventario: ${err.message}`, "error");
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="empty-cell" style="color:var(--danger)">Error al cargar</td></tr>`;
     }
 }
 

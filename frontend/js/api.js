@@ -10,9 +10,24 @@ async function request(method, path, body = null) {
         method,
         headers: { "Content-Type": "application/json" },
     };
+
+    // Inject JWT token if available
+    const token = localStorage.getItem("tizon_token");
+    if (token) {
+        options.headers["Authorization"] = `Bearer ${token}`;
+    }
+
     if (body) options.body = JSON.stringify(body);
     const resp = await fetch(`${BASE_URL}${path}`, options);
     const data = await resp.json().catch(() => null);
+
+    if (resp.status === 401) {
+        localStorage.removeItem("tizon_token");
+        const overlay = document.getElementById("login-overlay");
+        if (overlay) overlay.classList.add("visible");
+        throw new Error(data?.detail || "Sesión expirada o no autorizada");
+    }
+
     if (!resp.ok) {
         const msg = data?.detail || `Error HTTP ${resp.status}`;
         throw new Error(msg);
@@ -20,13 +35,41 @@ async function request(method, path, body = null) {
     return data;
 }
 
-// ── Productos ──────────────────────────────────────────────────────
+// ── Endpoints ──────────────────────────────────────────────────────
 export const API = {
+    auth: {
+        login: (username, password) => request("POST", "/api/auth/login", { username, password }),
+    },
     productos: {
-        listar: () => request("GET", "/api/productos"),
-        crear: (data) => request("POST", "/api/productos", data),
-        editar: (id, data) => request("PUT", `/api/productos/${id}`, data),
-        eliminar: (id) => request("DELETE", `/api/productos/${id}`),
+        listar: async () => {
+            const cached = sessionStorage.getItem("tizon_productos");
+            if (cached) {
+                // Stale-While-Revalidate: actualiza en background
+                request("GET", "/api/productos").then(data => {
+                    sessionStorage.setItem("tizon_productos", JSON.stringify(data));
+                }).catch(() => { });
+                return JSON.parse(cached);
+            }
+            // Primera carga
+            const data = await request("GET", "/api/productos");
+            sessionStorage.setItem("tizon_productos", JSON.stringify(data));
+            return data;
+        },
+        crear: async (data) => {
+            const res = await request("POST", "/api/productos", data);
+            sessionStorage.removeItem("tizon_productos"); // Invalidar cache
+            return res;
+        },
+        editar: async (id, data) => {
+            const res = await request("PUT", `/api/productos/${id}`, data);
+            sessionStorage.removeItem("tizon_productos"); // Invalidar cache
+            return res;
+        },
+        eliminar: async (id) => {
+            const res = await request("DELETE", `/api/productos/${id}`);
+            sessionStorage.removeItem("tizon_productos"); // Invalidar cache
+            return res;
+        },
     },
     ventas: {
         registrar: (data) => request("POST", "/api/ventas", data),

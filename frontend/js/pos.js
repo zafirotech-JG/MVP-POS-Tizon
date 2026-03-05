@@ -9,20 +9,25 @@ import { showToast, formatCOP } from "./utils.js";
 let productos = [];
 let metodoPagoSeleccionado = "";
 
-export async function initPOS() {
-    await cargarProductos();
+export function initPOS() {
     bindEventos();
+    cargarProductos(); // Llamado asíncrono sin await para no bloquear UI
 }
 
 // ── Carga productos del backend ────────────────────────────────────────────
 async function cargarProductos() {
+    const grilla = document.getElementById("grilla-productos");
+    // Mostrar skeletons si la grilla está vacía
+    if (grilla && (!grilla.children.length || grilla.innerHTML.includes("Cargando"))) {
+        grilla.innerHTML = Array(6).fill('<div class="product-card skeleton"><span class="product-name">...</span><span class="product-price">...</span></div>').join('');
+    }
+
     try {
         productos = await API.productos.listar();
         renderGrilla();
     } catch (err) {
         showToast(`Error cargando productos: ${err.message}`, "error");
-        document.getElementById("grilla-productos").innerHTML =
-            `<p style="color:var(--danger);font-size:0.88rem;grid-column:1/-1">No se pudo cargar el menú</p>`;
+        if (grilla) grilla.innerHTML = `<p style="color:var(--danger);font-size:0.88rem;grid-column:1/-1">No se pudo cargar el menú</p>`;
     }
 }
 

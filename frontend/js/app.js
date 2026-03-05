@@ -39,5 +39,7 @@ document.querySelectorAll(".nav-item[data-seccion]").forEach((item) => {
     item.addEventListener("click", () => mostrarSeccion(item.dataset.seccion));
 });
 
-// Sección inicial
+// Init Auth y Sección inicial
+import { initAuth } from "./auth.js";
+initAuth();
 mostrarSeccion("pos");

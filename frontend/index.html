@@ -19,6 +19,8 @@
     <!-- ══ TOP BAR (mobile only) ══ -->
     <header class="topbar">
       <span class="topbar-logo">🔥 Tizón POS</span>
+      <button class="btn-icon" id="btn-logout-mobile"
+        style="position:absolute; right:16px; font-size:1.2rem; border:none;" title="Cerrar Sessión">🚪</button>
     </header>
 
     <!-- ══ SIDEBAR (desktop only) ══ -->
@@ -38,6 +40,9 @@
           <span class="icon">📊</span><span>Dashboard</span>
         </div>
       </nav>
+      <div style="margin-top:auto; padding:20px;">
+        <button class="btn btn-ghost" id="btn-logout-desktop" style="width:100%;">🚪 Salir</button>
+      </div>
     </aside>
 
     <!-- ══ MAIN ══ -->
@@ -238,6 +243,26 @@
         <button class="btn btn-ghost" id="btn-cancelar-modal">Cancelar</button>
         <button class="btn btn-primary" id="btn-guardar-producto">Guardar</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ LOGIN OVERLAY ══ -->
+  <div id="login-overlay" class="login-overlay visible">
+    <div class="login-card">
+      <div class="login-logo">
+        <h1 style="font-size: 2rem; margin-bottom: 4px;">🔥 Tizón</h1>
+        <p style="color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; font-size:0.8rem;">Control de
+          Acceso</p>
+      </div>
+      <div class="form-group" style="margin-bottom:12px; text-align: left;">
+        <label for="login-username">Usuario</label>
+        <input type="text" id="login-username" placeholder="Ingresa tu usuario" autocomplete="username" />
+      </div>
+      <div class="form-group" style="margin-bottom:24px; text-align: left;">
+        <label for="login-password">Contraseña</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" id="btn-login" style="width:100%; padding: 14px; font-size: 1rem;">Entrar</button>
     </div>
   </div>
 

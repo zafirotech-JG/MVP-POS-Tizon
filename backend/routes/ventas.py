@@ -1,11 +1,16 @@
 """
 Ruta de Ventas — Registro de transacciones POS
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from backend.models import VentaCreate, VentaOut
 from backend import sheets
+from backend.auth import get_current_user
 
-router = APIRouter(prefix="/api/ventas", tags=["Ventas"])
+router = APIRouter(
+    prefix="/api/ventas", 
+    tags=["Ventas"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("/", response_model=VentaOut, status_code=201)
