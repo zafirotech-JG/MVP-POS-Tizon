@@ -29,7 +29,15 @@ function mostrarSeccion(nombre) {
     // Inicializar módulo (o recargar dashboard en cada visita)
     const modulo = modulos[nombre];
     if (modulo && (!modulo.initialized || nombre === "dashboard")) {
-        modulo.init().catch(console.error);
+
+        // Ejecutamos el init y guardamos su resultado
+        const initResult = modulo.init();
+
+        // Verificamos si el resultado es una Promesa antes de ponerle .catch()
+        if (initResult && typeof initResult.catch === 'function') {
+            initResult.catch(console.error);
+        }
+
         modulo.initialized = true;
     }
 }
