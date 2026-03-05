@@ -8,6 +8,9 @@ Estructura del Spreadsheet:
 """
 import os
 import uuid
+import os
+import json
+from google.oauth2.service_account import Credentials
 from datetime import datetime, date
 from typing import List, Optional
 
@@ -31,9 +34,19 @@ HEADERS_VENTAS = [
 
 
 def _get_client() -> gspread.Client:
-    """Retorna un cliente autenticado de gspread."""
-    credentials_path = os.getenv("CREDENTIALS_PATH", "service_account.json")
-    creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+    # 1. Intentamos obtener el JSON de la variable de entorno (Railway)
+    google_json = os.getenv("CREDENTIALS_PATH")
+    
+    if google_json:
+        # Si existe la variable, la convertimos de texto a diccionario
+        creds_dict = json.loads(google_json)
+        # Usamos 'from_service_account_info' para diccionarios
+        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    else:
+        # Si no existe (estás en local), busca el archivo físico
+        # Asegúrate de que 'credentials_path' esté definido arriba
+        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+        
     return gspread.authorize(creds)
 
 
