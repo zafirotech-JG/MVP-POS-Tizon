@@ -23,7 +23,7 @@ def reporte_del_dia(
     fecha: str = Query(
         default=None,
         description="Fecha en formato YYYY-MM-DD. Por defecto: hoy.",
-        examples="2026-03-04",
+        examples=["2026-03-04"], # <-- CORRECCIÓN 1: Ahora es una lista
     )
 ):
     """
@@ -35,14 +35,24 @@ def reporte_del_dia(
         fecha = date.today().isoformat()
 
     ventas = sheets.get_ventas_por_fecha(fecha)
+    
+    # CORRECCIÓN 3: Si no hay ventas, aseguramos que sea una lista vacía para que no falle el 'for'
+    if not ventas:
+        ventas = []
 
     # ── Tabla de productos ──────────────────────────────────────────────
     agg_productos: dict[str, dict] = defaultdict(lambda: {"cantidad_total": 0, "total_ingresos": 0.0})
 
     for venta in ventas:
-        nombre = str(venta["producto_nombre"])
-        agg_productos[nombre]["cantidad_total"] += int(venta["cantidad"])
-        agg_productos[nombre]["total_ingresos"] += float(venta["total"])
+        # CORRECCIÓN 2: Uso seguro de .get() y manejo de celdas vacías de Sheets
+        nombre = str(venta.get("producto_nombre", "Producto Desconocido"))
+        
+        # El 'or 0' hace que si viene un string vacío "", se convierta en 0 antes del int()/float()
+        cantidad = int(venta.get("cantidad") or 0)
+        total = float(venta.get("total") or 0.0)
+
+        agg_productos[nombre]["cantidad_total"] += cantidad
+        agg_productos[nombre]["total_ingresos"] += total
 
     productos_reporte = [
         ReporteProducto(
@@ -63,7 +73,8 @@ def reporte_del_dia(
 
     for venta in ventas:
         metodo = str(venta.get("metodo_pago", ""))
-        monto = float(venta.get("total", 0))
+        monto = float(venta.get("total") or 0.0) # Uso seguro contra celdas vacías
+        
         total_dia += monto
         if metodo in totales_metodo:
             totales_metodo[metodo] += monto
@@ -73,7 +84,7 @@ def reporte_del_dia(
         efectivo=round(totales_metodo["Efectivo"], 2),
         nequi=round(totales_metodo["Nequi"], 2),
         daviplata=round(totales_metodo["Daviplata"], 2),
-        tarjeta=round(totales_metodo["Tarjeta"], 2),
+        taraje=round(totales_metodo["Tarjeta"], 2),
     )
 
     return ReporteDia(
