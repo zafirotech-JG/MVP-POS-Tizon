@@ -38,7 +38,7 @@ app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
 
 
-@app.get("/", include_in_schema=False)
+@app.get(include_in_schema=False)
 def serve_frontend():
     """Sirve el index.html del frontend."""
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
