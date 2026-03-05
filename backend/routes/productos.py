@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[ProductoOut])
+@router.get("", response_model=list[ProductoOut])
 def listar_productos():
     """Retorna todos los productos activos."""
     productos = sheets.get_productos()
@@ -29,7 +29,7 @@ def listar_productos():
     ]
 
 
-@router.post("/", response_model=ProductoOut, status_code=201)
+@router.post("", response_model=ProductoOut, status_code=201)
 def crear_producto(data: ProductoCreate):
     """Crea un nuevo producto en la hoja Productos."""
     nuevo = sheets.add_producto(
