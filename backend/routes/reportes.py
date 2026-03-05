@@ -18,7 +18,7 @@ def reporte_del_dia(
     fecha: str = Query(
         default=None,
         description="Fecha en formato YYYY-MM-DD. Por defecto: hoy.",
-        example="2026-03-04",
+        examples="2026-03-04",
     )
 ):
     """
