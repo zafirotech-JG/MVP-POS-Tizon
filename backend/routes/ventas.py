@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=VentaOut, status_code=201)
+@router.post("", response_model=VentaOut, status_code=201)
 def registrar_venta(data: VentaCreate):
     """
     Registra una venta en la hoja Ventas.
