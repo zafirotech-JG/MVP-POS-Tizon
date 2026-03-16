@@ -38,7 +38,29 @@ async function request(method, path, body = null) {
 // ── Endpoints ──────────────────────────────────────────────────────
 export const API = {
     auth: {
-        login: (username, password) => request("POST", "/api/auth/login", { username, password }),
+        login: async (username, password) => {
+            // 1. Creamos el formato de formulario que FastAPI espera
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            // 2. Hacemos la petición manualmente para usar el Content-Type correcto
+            const response = await fetch(`${BASE_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "Error en el inicio de sesión");
+            }
+
+            return data;
+        },
     },
     productos: {
         listar: async () => {

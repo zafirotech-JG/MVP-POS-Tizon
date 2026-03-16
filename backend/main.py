@@ -17,9 +17,14 @@ app = FastAPI(
 )
 
 # ── CORS ────────────────────────────────────────────────────────────────
+# Orígenes permitidos configurables mediante variable de entorno (separados por coma)
+cors_origins_str = os.getenv("CORS_ORIGINS", "*")
+origins = [origin.strip() for origin in cors_origins_str.split(",")] if cors_origins_str else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # En producción restringir al dominio real
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
