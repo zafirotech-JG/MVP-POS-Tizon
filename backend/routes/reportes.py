@@ -84,7 +84,7 @@ def reporte_del_dia(
         efectivo=round(totales_metodo["Efectivo"], 2),
         nequi=round(totales_metodo["Nequi"], 2),
         daviplata=round(totales_metodo["Daviplata"], 2),
-        taraje=round(totales_metodo["Tarjeta"], 2),
+        tarjeta=round(totales_metodo["Tarjeta"], 2),
     )
 
     return ReporteDia(
