@@ -11,6 +11,8 @@ let productos = [];
 let carrito = []; // [{id, nombre, precio, cantidad}]
 let domicilioActivo = false;
 let metodoPagoSeleccionado = "";
+let filtroTexto = "";
+let filtroCategoria = "";
 const DOMICILIO_POR_UNIDAD = 1000;
 
 export function initPOS() {
@@ -27,6 +29,7 @@ async function cargarProductos() {
 
     try {
         productos = await API.productos.listar();
+        await poblarFiltroCategorias();
         renderGrilla();
     } catch (err) {
         showToast(`Error cargando productos: ${err.message}`, "error");
@@ -34,14 +37,37 @@ async function cargarProductos() {
     }
 }
 
+async function poblarFiltroCategorias() {
+    const select = document.getElementById("filtro-categoria-pos");
+    if (!select) return;
+
+    let categorias = [];
+    try {
+        categorias = await API.categorias.listar();
+    } catch {
+        const unicas = [...new Set(productos.map((p) => (p.categoria || "General").trim()))];
+        categorias = unicas.map((nombre, idx) => ({ id: String(idx), nombre }));
+    }
+
+    const opciones = categorias
+        .map((c) => `<option value="${c.nombre}">${c.nombre}</option>`)
+        .join("");
+    select.innerHTML = `<option value="">Todas las categorías</option>${opciones}`;
+}
+
 // ── Grilla de productos ────────────────────────────────────────────────────
-function renderGrilla(filtro = "") {
+function renderGrilla() {
     const grilla = document.getElementById("grilla-productos");
     if (!grilla) return;
 
-    const filtrados = filtro
-        ? productos.filter(p => p.nombre.toLowerCase().includes(filtro.toLowerCase()))
-        : productos;
+    const texto = filtroTexto.trim().toLowerCase();
+    const categoria = filtroCategoria.trim().toLowerCase();
+    const filtrados = productos.filter((p) => {
+        const coincideTexto = texto ? p.nombre.toLowerCase().includes(texto) : true;
+        const categoriaProducto = String(p.categoria || "General").toLowerCase();
+        const coincideCategoria = categoria ? categoriaProducto === categoria : true;
+        return coincideTexto && coincideCategoria;
+    });
 
     if (productos.length === 0) {
         grilla.innerHTML = `<p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">No hay productos registrados. Agrega uno en Inventario.</p>`;
@@ -49,7 +75,7 @@ function renderGrilla(filtro = "") {
     }
 
     if (filtrados.length === 0) {
-        grilla.innerHTML = `<p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">No se encontraron productos para "${filtro}"</p>`;
+        grilla.innerHTML = `<p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">No se encontraron productos con los filtros actuales</p>`;
         return;
     }
 
@@ -383,7 +409,13 @@ async function registrarVenta() {
 function bindEventos() {
     // Búsqueda de productos
     document.getElementById("buscar-producto")?.addEventListener("input", (e) => {
-        renderGrilla(e.target.value);
+        filtroTexto = e.target.value || "";
+        renderGrilla();
+    });
+
+    document.getElementById("filtro-categoria-pos")?.addEventListener("change", (e) => {
+        filtroCategoria = e.target.value || "";
+        renderGrilla();
     });
 
     // Toggle domicilio

@@ -23,6 +23,7 @@ def listar_productos():
             nombre=str(p["nombre"]),
             precio=float(p["precio"]),
             insumos=str(p.get("insumos", "")),
+            categoria=str(p.get("categoria", "General")),
             activo=str(p.get("activo", "TRUE")).upper() == "TRUE",
         )
         for p in productos
@@ -36,6 +37,7 @@ def crear_producto(data: ProductoCreate):
         nombre=data.nombre,
         precio=data.precio,
         insumos=data.insumos or "",
+        categoria=data.categoria,
     )
     return ProductoOut(**nuevo)
 
@@ -48,6 +50,7 @@ def editar_producto(producto_id: str, data: ProductoCreate):
         nombre=data.nombre,
         precio=data.precio,
         insumos=data.insumos or "",
+        categoria=data.categoria,
     )
     if not actualizado:
         raise HTTPException(status_code=404, detail="Producto no encontrado")

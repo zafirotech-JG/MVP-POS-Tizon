@@ -3,7 +3,10 @@
  * Centraliza todas las llamadas fetch hacia el backend FastAPI.
  */
 
-const BASE_URL = "https://tizon-mvp.up.railway.app";
+const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const BASE_URL = isLocal
+    ? `${window.location.protocol}//127.0.0.1:8000`
+    : "https://tizon-mvp.up.railway.app";
 
 async function request(method, path, body = null) {
     const options = {
@@ -68,6 +71,24 @@ export const API = {
         crear: (data) => request("POST", "/api/productos", data).then(r => { sessionStorage.removeItem("tizon_productos"); return r; }),
         editar: (id, data) => request("PUT", `/api/productos/${id}`, data).then(r => { sessionStorage.removeItem("tizon_productos"); return r; }),
         eliminar: (id) => request("DELETE", `/api/productos/${id}`).then(r => { sessionStorage.removeItem("tizon_productos"); return r; }),
+    },
+
+    categorias: {
+        listar: (force = false) => {
+            const cacheKey = "tizon_categorias";
+            if (!force) {
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) return Promise.resolve(JSON.parse(cached));
+            }
+            return request("GET", "/api/categorias").then((data) => {
+                sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                return data;
+            });
+        },
+        crear: (data) => request("POST", "/api/categorias", data).then((r) => {
+            sessionStorage.removeItem("tizon_categorias");
+            return r;
+        }),
     },
 
     ventas: {

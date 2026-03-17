@@ -20,6 +20,7 @@ class ProductoCreate(BaseModel):
     nombre: str
     precio: float
     insumos: Optional[str] = ""
+    categoria: str = "General"
 
     @field_validator("precio")
     @classmethod
@@ -35,12 +36,37 @@ class ProductoCreate(BaseModel):
             raise ValueError("El nombre no puede estar vacío")
         return v.strip()
 
+    @field_validator("categoria")
+    @classmethod
+    def categoria_no_vacia(cls, v):
+        if not v.strip():
+            raise ValueError("La categoría es obligatoria")
+        return v.strip()
+
 
 class ProductoOut(BaseModel):
     id: str
     nombre: str
     precio: float
     insumos: str
+    categoria: str
+    activo: bool
+
+
+class CategoriaCreate(BaseModel):
+    nombre: str
+
+    @field_validator("nombre")
+    @classmethod
+    def nombre_no_vacio(cls, v):
+        if not v.strip():
+            raise ValueError("El nombre de la categoría no puede estar vacío")
+        return v.strip()
+
+
+class CategoriaOut(BaseModel):
+    id: str
+    nombre: str
     activo: bool
 
 
