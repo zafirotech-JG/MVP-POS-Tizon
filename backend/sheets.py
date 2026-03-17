@@ -34,37 +34,23 @@ HEADERS_VENTAS = [
 HEADERS_CATEGORIAS = ["id", "nombre", "activo"]
 
 
-def _get_client() -> gspread.Client:
-    """
-    Obtiene un cliente autenticado de gspread.
-    - Railway: GOOGLE_CREDENTIALS_JSON contiene el JSON del service account.
-    - Local:   CREDENTIALS_PATH contiene la ruta relativa al archivo JSON.
-    """
-    # 1. Railway: variable con JSON inline
-    google_json = os.getenv("GOOGLE_CREDENTIALS_JSON", "")
-    if google_json.strip().startswith("{"):
-        creds_dict = json.loads(google_json)
+def _get_client():
+    # 1. Intentamos leer la variable de entorno (Para Railway)
+    google_env = os.getenv("GOOGLE_CREDENTIALS_JSON")
+
+    if google_env:
+        # ¡ESTAMOS EN LA NUBE!
+        # Convertimos el texto gigante en un diccionario y usamos la función "info"
+        creds_dict = json.loads(google_env)
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-        return gspread.authorize(creds)
+    else:
+        # ¡ESTAMOS EN TU PC LOCAL!
+        # Le damos el nombre del archivo físico (asegúrate de que no intente leer la variable aquí)
+        # Reemplaza "service_account.json" con el nombre real de tu archivo local si es diferente
+        ruta_local = os.path.join(os.path.dirname(__file__), "service_account.json")
+        creds = Credentials.from_service_account_file(ruta_local, scopes=SCOPES)
 
-    # 2. Local: ruta al archivo de credenciales
-    creds_path_str = os.getenv("CREDENTIALS_PATH", "")
-    if creds_path_str:
-        # Resolver ruta relativa al directorio del proyecto
-        base_dir = Path(__file__).resolve().parent.parent
-        creds_file = base_dir / creds_path_str
-        if creds_file.exists():
-            creds = Credentials.from_service_account_file(str(creds_file), scopes=SCOPES)
-            return gspread.authorize(creds)
-        raise FileNotFoundError(
-            f"Archivo de credenciales no encontrado: {creds_file}. "
-            f"Verifica CREDENTIALS_PATH en .env"
-        )
-
-    raise RuntimeError(
-        "No se encontraron credenciales de Google. "
-        "Configura GOOGLE_CREDENTIALS_JSON (Railway) o CREDENTIALS_PATH (local) en .env"
-    )
+    return gspread.authorize(creds)
 
 
 def _open_sheet(sheet_name: str) -> gspread.Worksheet:
