@@ -1,23 +1,26 @@
 /**
- * POS Module — Registro de ventas
- * Compatible con: grilla de productos, quantity stepper, payment pills, bottom sheet (mobile).
+ * POS Module — Registro de ventas con carrito multi-producto
+ * Incluye: carrito, domicilio (+$1000/unidad), pasarela de pago con cambio.
  */
 
 import { API } from "./api.js";
 import { showToast, formatCOP } from "./utils.js";
 
+// ── Estado ────────────────────────────────────────────────────────────────
 let productos = [];
+let carrito = []; // [{id, nombre, precio, cantidad}]
+let domicilioActivo = false;
 let metodoPagoSeleccionado = "";
+const DOMICILIO_POR_UNIDAD = 1000;
 
 export function initPOS() {
     bindEventos();
-    cargarProductos(); // Llamado asíncrono sin await para no bloquear UI
+    cargarProductos();
 }
 
 // ── Carga productos del backend ────────────────────────────────────────────
 async function cargarProductos() {
     const grilla = document.getElementById("grilla-productos");
-    // Mostrar skeletons si la grilla está vacía
     if (grilla && (!grilla.children.length || grilla.innerHTML.includes("Cargando"))) {
         grilla.innerHTML = Array(6).fill('<div class="product-card skeleton"><span class="product-name">...</span><span class="product-price">...</span></div>').join('');
     }
@@ -32,153 +35,389 @@ async function cargarProductos() {
 }
 
 // ── Grilla de productos ────────────────────────────────────────────────────
-function renderGrilla() {
+function renderGrilla(filtro = "") {
     const grilla = document.getElementById("grilla-productos");
     if (!grilla) return;
+
+    const filtrados = filtro
+        ? productos.filter(p => p.nombre.toLowerCase().includes(filtro.toLowerCase()))
+        : productos;
 
     if (productos.length === 0) {
         grilla.innerHTML = `<p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">No hay productos registrados. Agrega uno en Inventario.</p>`;
         return;
     }
 
+    if (filtrados.length === 0) {
+        grilla.innerHTML = `<p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">No se encontraron productos para "${filtro}"</p>`;
+        return;
+    }
+
     grilla.innerHTML = "";
-    productos.forEach((p) => {
+    filtrados.forEach((p) => {
+        const enCarrito = carrito.find(item => item.id === p.id);
         const card = document.createElement("button");
-        card.className = "product-card";
+        card.className = "product-card" + (enCarrito ? " added" : "");
         card.type = "button";
         card.dataset.id = p.id;
-        card.dataset.precio = p.precio;
-        card.dataset.nombre = p.nombre;
         card.innerHTML = `
       <span class="product-name">${p.nombre}</span>
       <span class="product-price">${formatCOP(p.precio)}</span>
     `;
-        card.addEventListener("click", () => seleccionarProducto(p));
+        card.addEventListener("click", () => agregarAlCarrito(p));
         grilla.appendChild(card);
     });
 }
 
-// ── Selección de producto ──────────────────────────────────────────────────
-function seleccionarProducto(producto) {
-    // Marcar tarjeta seleccionada
-    document.querySelectorAll(".product-card").forEach((c) => c.classList.remove("selected"));
+// ── Carrito: agregar producto ──────────────────────────────────────────────
+function agregarAlCarrito(producto) {
+    const existente = carrito.find(item => item.id === producto.id);
+    if (existente) {
+        existente.cantidad++;
+    } else {
+        carrito.push({
+            id: producto.id,
+            nombre: producto.nombre,
+            precio: parseFloat(producto.precio),
+            cantidad: 1,
+        });
+    }
+
+    // Feedback visual en la tarjeta
     const card = document.querySelector(`.product-card[data-id="${producto.id}"]`);
-    if (card) card.classList.add("selected");
+    if (card) {
+        card.classList.add("added");
+        card.style.transform = "scale(0.93)";
+        setTimeout(() => { card.style.transform = ""; }, 150);
+    }
 
-    // Llenar panel
-    document.getElementById("detalle-nombre").textContent = producto.nombre;
-    document.getElementById("detalle-precio").textContent = formatCOP(producto.precio);
-    document.getElementById("venta-producto-id").value = producto.id;
-    document.getElementById("venta-cantidad").value = 1;
-
-    // Reset método de pago
-    metodoPagoSeleccionado = "";
-    document.getElementById("venta-metodo-pago").value = "";
-    document.querySelectorAll(".pago-pill").forEach((p) => p.classList.remove("selected"));
-
-    recalcularTotal();
-    abrirPanel();
+    renderCarrito();
+    recalcularTotales();
 }
 
-// ── Abrir / cerrar panel ───────────────────────────────────────────────────
-function abrirPanel() {
-    document.getElementById("panel-venta").classList.add("visible");
-    document.getElementById("panel-backdrop").classList.add("visible");
+// ── Carrito: modificar cantidad ────────────────────────────────────────────
+function cambiarCantidad(productoId, delta) {
+    const item = carrito.find(i => i.id === productoId);
+    if (!item) return;
+
+    item.cantidad += delta;
+    if (item.cantidad <= 0) {
+        carrito = carrito.filter(i => i.id !== productoId);
+        // Quitar clase "added" de la tarjeta del catálogo
+        const card = document.querySelector(`.product-card[data-id="${productoId}"]`);
+        if (card) card.classList.remove("added");
+    }
+
+    renderCarrito();
+    recalcularTotales();
+}
+
+// ── Carrito: vaciar ────────────────────────────────────────────────────────
+function vaciarCarrito() {
+    carrito = [];
+    document.querySelectorAll(".product-card.added").forEach(c => c.classList.remove("added"));
+    renderCarrito();
+    recalcularTotales();
+}
+
+// ── Render del carrito ─────────────────────────────────────────────────────
+function renderCarrito() {
+    const container = document.getElementById("carrito-items");
+    if (!container) return;
+
+    if (carrito.length === 0) {
+        container.innerHTML = `
+            <div class="carrito-vacio">
+                <span class="carrito-vacio-icon">🛒</span>
+                <p>Tu carrito está vacío</p>
+                <span>Selecciona productos del catálogo</span>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = carrito.map(item => `
+        <div class="carrito-item" data-id="${item.id}">
+            <div class="carrito-item-info">
+                <div class="carrito-item-nombre">${item.nombre}</div>
+                <div class="carrito-item-precio">${formatCOP(item.precio)} c/u</div>
+            </div>
+            <div class="cart-qty">
+                <button type="button" class="${item.cantidad === 1 ? 'btn-remove' : ''}" data-action="minus" data-id="${item.id}">${item.cantidad === 1 ? '🗑' : '−'}</button>
+                <span class="cart-qty-val">${item.cantidad}</span>
+                <button type="button" data-action="plus" data-id="${item.id}">+</button>
+            </div>
+            <span class="carrito-item-subtotal">${formatCOP(item.precio * item.cantidad)}</span>
+        </div>
+    `).join("");
+
+    // Bind qty buttons
+    container.querySelectorAll("button[data-action]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const id = btn.dataset.id;
+            const delta = btn.dataset.action === "plus" ? 1 : -1;
+            cambiarCantidad(id, delta);
+        });
+    });
+
+    // Actualizar badge
+    actualizarBadge();
+}
+
+// ── Recálculo de totales en tiempo real ────────────────────────────────────
+function recalcularTotales() {
+    const totalUnidades = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    const domicilio = domicilioActivo ? totalUnidades * DOMICILIO_POR_UNIDAD : 0;
+    const total = subtotal + domicilio;
+
+    // Carrito panel
+    const elSubtotal = document.getElementById("carrito-subtotal");
+    const elDomicilio = document.getElementById("carrito-domicilio");
+    const elTotal = document.getElementById("carrito-total");
+    const filaDomicilio = document.getElementById("fila-domicilio");
+    const btnCobrar = document.getElementById("btn-cobrar");
+
+    if (elSubtotal) elSubtotal.textContent = formatCOP(subtotal);
+    if (elDomicilio) elDomicilio.textContent = formatCOP(domicilio);
+    if (elTotal) elTotal.textContent = formatCOP(total);
+
+    if (filaDomicilio) {
+        filaDomicilio.style.display = domicilioActivo ? "flex" : "none";
+    }
+
+    if (btnCobrar) {
+        btnCobrar.disabled = carrito.length === 0;
+    }
+
+    actualizarBadge();
+}
+
+// ── Badge del carrito (mobile) ─────────────────────────────────────────────
+function actualizarBadge() {
+    const badge = document.getElementById("cart-badge");
+    const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    if (badge) badge.textContent = totalItems;
+}
+
+// ── Toggle domicilio ───────────────────────────────────────────────────────
+function toggleDomicilio() {
+    domicilioActivo = document.getElementById("toggle-domicilio")?.checked || false;
+    recalcularTotales();
+}
+
+// ── Mobile: abrir/cerrar panel del carrito ─────────────────────────────────
+function abrirCarritoMobile() {
+    document.getElementById("panel-carrito")?.classList.add("visible");
+    document.getElementById("panel-backdrop")?.classList.add("visible");
     document.body.style.overflow = "hidden";
 }
 
-function cerrarPanel() {
-    document.getElementById("panel-venta").classList.remove("visible");
-    document.getElementById("panel-backdrop").classList.remove("visible");
+function cerrarCarritoMobile() {
+    document.getElementById("panel-carrito")?.classList.remove("visible");
+    document.getElementById("panel-backdrop")?.classList.remove("visible");
     document.body.style.overflow = "";
-    document.querySelectorAll(".product-card").forEach((c) => c.classList.remove("selected"));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PASARELA DE PAGO (Modal)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function abrirModalPago() {
+    if (carrito.length === 0) {
+        showToast("Agrega productos al carrito primero", "warning");
+        return;
+    }
+
+    metodoPagoSeleccionado = "";
+
+    // Calcular totales
+    const totalUnidades = carrito.reduce((sum, i) => sum + i.cantidad, 0);
+    const subtotal = carrito.reduce((sum, i) => sum + (i.precio * i.cantidad), 0);
+    const domicilio = domicilioActivo ? totalUnidades * DOMICILIO_POR_UNIDAD : 0;
+    const total = subtotal + domicilio;
+
+    // Resumen del pedido
+    const resumenEl = document.getElementById("pago-resumen-pedido");
+    if (resumenEl) {
+        resumenEl.innerHTML = carrito.map(item =>
+            `<div class="pago-pedido-item">
+                <span>${item.nombre} × ${item.cantidad}</span>
+                <span>${formatCOP(item.precio * item.cantidad)}</span>
+            </div>`
+        ).join("");
+    }
+
+    // Totales
+    document.getElementById("pago-subtotal").textContent = formatCOP(subtotal);
+
+    const filaDom = document.getElementById("pago-fila-domicilio");
+    if (filaDom) {
+        filaDom.style.display = domicilioActivo ? "flex" : "none";
+    }
+    document.getElementById("pago-domicilio").textContent = formatCOP(domicilio);
+    document.getElementById("pago-total").textContent = formatCOP(total);
+
+    // Reset estado del modal
+    document.querySelectorAll("#pago-pills .pago-pill").forEach(p => p.classList.remove("selected"));
+    document.getElementById("pago-efectivo-group").style.display = "none";
+    document.getElementById("pago-recibido").value = "";
+    document.getElementById("pago-cambio-wrap").style.display = "none";
+    document.getElementById("btn-registrar-venta").disabled = true;
+
+    // Abrir modal
+    document.getElementById("modal-pago")?.classList.add("open");
+}
+
+function cerrarModalPago() {
+    document.getElementById("modal-pago")?.classList.remove("open");
     metodoPagoSeleccionado = "";
 }
 
-// ── Stepper de cantidad ────────────────────────────────────────────────────
-function ajustarCantidad(delta) {
-    const input = document.getElementById("venta-cantidad");
-    const nuevoValor = Math.max(1, (parseInt(input.value, 10) || 1) + delta);
-    input.value = nuevoValor;
-    recalcularTotal();
+function seleccionarMetodoPago(pill) {
+    document.querySelectorAll("#pago-pills .pago-pill").forEach(p => p.classList.remove("selected"));
+    pill.classList.add("selected");
+    metodoPagoSeleccionado = pill.dataset.valor;
+
+    const efectivoGroup = document.getElementById("pago-efectivo-group");
+    if (metodoPagoSeleccionado === "Efectivo") {
+        efectivoGroup.style.display = "flex";
+        document.getElementById("pago-recibido").value = "";
+        document.getElementById("pago-cambio-wrap").style.display = "none";
+        // Para efectivo, el botón se habilita al ingresar monto suficiente
+        document.getElementById("btn-registrar-venta").disabled = true;
+    } else {
+        efectivoGroup.style.display = "none";
+        // Para métodos digitales, habilitar directamente
+        document.getElementById("btn-registrar-venta").disabled = false;
+    }
 }
 
-// ── Recálculo en tiempo real ───────────────────────────────────────────────
-function recalcularTotal() {
-    const card = document.querySelector(".product-card.selected");
-    if (!card) return;
-    const precio = parseFloat(card.dataset.precio) || 0;
-    const cantidad = parseInt(document.getElementById("venta-cantidad")?.value, 10) || 0;
-    document.getElementById("detalle-total").textContent = formatCOP(precio * cantidad);
+function calcularCambio() {
+    const totalUnidades = carrito.reduce((sum, i) => sum + i.cantidad, 0);
+    const subtotal = carrito.reduce((sum, i) => sum + (i.precio * i.cantidad), 0);
+    const domicilio = domicilioActivo ? totalUnidades * DOMICILIO_POR_UNIDAD : 0;
+    const total = subtotal + domicilio;
+
+    const recibido = parseFloat(document.getElementById("pago-recibido")?.value) || 0;
+    const cambioWrap = document.getElementById("pago-cambio-wrap");
+    const cambioEl = document.getElementById("pago-cambio");
+    const btnRegistrar = document.getElementById("btn-registrar-venta");
+
+    if (recibido <= 0) {
+        cambioWrap.style.display = "none";
+        btnRegistrar.disabled = true;
+        return;
+    }
+
+    cambioWrap.style.display = "flex";
+    const cambio = recibido - total;
+
+    if (cambio >= 0) {
+        cambioEl.textContent = formatCOP(cambio);
+        cambioWrap.classList.remove("error");
+        btnRegistrar.disabled = false;
+    } else {
+        cambioEl.textContent = `Faltan ${formatCOP(Math.abs(cambio))}`;
+        cambioWrap.classList.add("error");
+        btnRegistrar.disabled = true;
+    }
 }
 
-// ── Confirmación y envío ───────────────────────────────────────────────────
-async function confirmarVenta() {
-    const productoId = document.getElementById("venta-producto-id")?.value;
-    const cantidad = parseInt(document.getElementById("venta-cantidad")?.value, 10);
-    const metodoPago = metodoPagoSeleccionado;
-    const btnConfirmar = document.getElementById("btn-confirmar-venta");
+// ── Registrar la venta ─────────────────────────────────────────────────────
+async function registrarVenta() {
+    if (carrito.length === 0 || !metodoPagoSeleccionado) return;
 
-    if (!productoId) {
-        showToast("Selecciona un producto primero", "warning");
-        return;
-    }
-    if (!cantidad || cantidad < 1) {
-        showToast("La cantidad debe ser al menos 1", "warning");
-        return;
-    }
-    if (!metodoPago) {
-        showToast("Selecciona el método de pago", "warning");
-        // Animar pills para llamar la atención
-        document.getElementById("pago-pills").style.outline = "2px solid var(--accent)";
-        setTimeout(() => { document.getElementById("pago-pills").style.outline = ""; }, 1200);
-        return;
+    const btnRegistrar = document.getElementById("btn-registrar-venta");
+    btnRegistrar.disabled = true;
+    btnRegistrar.textContent = "Registrando…";
+
+    let exitosos = 0;
+    let errores = 0;
+
+    // Registrar cada item del carrito como venta individual
+    for (const item of carrito) {
+        try {
+            await API.ventas.registrar({
+                producto_id: item.id,
+                cantidad: item.cantidad,
+                metodo_pago: metodoPagoSeleccionado,
+            });
+            exitosos++;
+        } catch (err) {
+            errores++;
+            showToast(`Error registrando ${item.nombre}: ${err.message}`, "error");
+        }
     }
 
-    btnConfirmar.disabled = true;
-    btnConfirmar.textContent = "Registrando…";
-
-    try {
-        const venta = await API.ventas.registrar({
-            producto_id: productoId,
-            cantidad,
-            metodo_pago: metodoPago,
-        });
+    if (exitosos > 0) {
+        const totalUnidades = carrito.reduce((sum, i) => sum + i.cantidad, 0);
+        const subtotal = carrito.reduce((sum, i) => sum + (i.precio * i.cantidad), 0);
+        const domicilio = domicilioActivo ? totalUnidades * DOMICILIO_POR_UNIDAD : 0;
+        const total = subtotal + domicilio;
 
         showToast(
-            `✅ ${venta.producto_nombre} × ${venta.cantidad} — ${formatCOP(venta.total)}`,
+            `✅ Venta registrada — ${exitosos} producto(s) — ${formatCOP(total)}`,
             "success"
         );
-        cerrarPanel();
-    } catch (err) {
-        showToast(`Error al registrar: ${err.message}`, "error");
-    } finally {
-        btnConfirmar.disabled = false;
-        btnConfirmar.textContent = "✅  Confirmar Venta";
+
+        cerrarModalPago();
+        cerrarCarritoMobile();
+        vaciarCarrito();
+
+        // Reset domicilio toggle
+        domicilioActivo = false;
+        const toggle = document.getElementById("toggle-domicilio");
+        if (toggle) toggle.checked = false;
+        recalcularTotales();
     }
+
+    if (errores > 0 && exitosos === 0) {
+        showToast("No se pudo registrar la venta", "error");
+    }
+
+    btnRegistrar.disabled = false;
+    btnRegistrar.textContent = "✅ Registrar Venta";
 }
 
 // ── Bindings ───────────────────────────────────────────────────────────────
 function bindEventos() {
-    // Stepper
-    document.getElementById("btn-qty-minus")?.addEventListener("click", () => ajustarCantidad(-1));
-    document.getElementById("btn-qty-plus")?.addEventListener("click", () => ajustarCantidad(+1));
-    document.getElementById("venta-cantidad")?.addEventListener("input", recalcularTotal);
-
-    // Payment pills
-    document.querySelectorAll(".pago-pill").forEach((pill) => {
-        pill.addEventListener("click", () => {
-            document.querySelectorAll(".pago-pill").forEach((p) => p.classList.remove("selected"));
-            pill.classList.add("selected");
-            metodoPagoSeleccionado = pill.dataset.valor;
-            document.getElementById("venta-metodo-pago").value = pill.dataset.valor;
-        });
+    // Búsqueda de productos
+    document.getElementById("buscar-producto")?.addEventListener("input", (e) => {
+        renderGrilla(e.target.value);
     });
 
-    // Confirm / cancel
-    document.getElementById("btn-confirmar-venta")?.addEventListener("click", confirmarVenta);
-    document.getElementById("btn-cancelar-venta")?.addEventListener("click", cerrarPanel);
+    // Toggle domicilio
+    document.getElementById("toggle-domicilio")?.addEventListener("change", toggleDomicilio);
 
-    // Backdrop closes panel (mobile)
-    document.getElementById("panel-backdrop")?.addEventListener("click", cerrarPanel);
+    // Botón Cobrar
+    document.getElementById("btn-cobrar")?.addEventListener("click", abrirModalPago);
+
+    // Vaciar carrito
+    document.getElementById("btn-limpiar-carrito")?.addEventListener("click", () => {
+        if (carrito.length === 0) return;
+        vaciarCarrito();
+        showToast("Carrito vaciado", "info");
+    });
+
+    // Mobile: abrir/cerrar carrito
+    document.getElementById("btn-cart-toggle")?.addEventListener("click", abrirCarritoMobile);
+    document.getElementById("btn-cerrar-carrito")?.addEventListener("click", cerrarCarritoMobile);
+    document.getElementById("panel-backdrop")?.addEventListener("click", cerrarCarritoMobile);
+
+    // Modal de pago: pills
+    document.querySelectorAll("#pago-pills .pago-pill").forEach(pill => {
+        pill.addEventListener("click", () => seleccionarMetodoPago(pill));
+    });
+
+    // Modal de pago: dinero recibido
+    document.getElementById("pago-recibido")?.addEventListener("input", calcularCambio);
+
+    // Modal de pago: registrar / cancelar
+    document.getElementById("btn-registrar-venta")?.addEventListener("click", registrarVenta);
+    document.getElementById("btn-cancelar-pago")?.addEventListener("click", cerrarModalPago);
+
+    // Cerrar modal de pago con backdrop
+    document.getElementById("modal-pago")?.addEventListener("click", (e) => {
+        if (e.target.id === "modal-pago") cerrarModalPago();
+    });
 }

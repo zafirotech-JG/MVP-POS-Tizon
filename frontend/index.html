@@ -52,63 +52,79 @@
       <section id="seccion-pos" class="section">
         <div class="section-header">
           <h2 class="section-title">Punto de Venta</h2>
+          <!-- Mobile cart toggle -->
+          <button class="btn btn-primary btn-cart-toggle" id="btn-cart-toggle" type="button">
+            🛒 Ver Carrito <span class="cart-badge" id="cart-badge">0</span>
+          </button>
         </div>
 
         <div class="pos-layout">
-          <!-- Grilla de productos -->
-          <div class="card">
-            <label style="margin-bottom:14px;display:block;">Selecciona un producto</label>
-            <div id="grilla-productos" class="grilla-productos">
-              <p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">Cargando productos…</p>
+          <!-- Catálogo de productos -->
+          <div class="pos-catalogo">
+            <div class="card">
+              <div class="catalogo-header">
+                <label>Selecciona productos para agregar al carrito</label>
+                <input type="text" id="buscar-producto" class="input-buscar" placeholder="🔍 Buscar producto…" autocomplete="off" />
+              </div>
+              <div id="grilla-productos" class="grilla-productos">
+                <p style="color:var(--text-muted);font-size:0.88rem;grid-column:1/-1">Cargando productos…</p>
+              </div>
             </div>
           </div>
 
-          <!-- Panel de venta (bottom sheet en mobile, side panel en desktop) -->
-          <div id="panel-venta" class="panel-venta">
+          <!-- Panel Carrito / Resumen de Venta (sidebar en desktop, bottom sheet en mobile) -->
+          <div id="panel-carrito" class="panel-carrito">
             <div class="panel-handle"></div>
-            <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;">Detalle de Venta</h3>
-
-            <input type="hidden" id="venta-producto-id" />
-
-            <div class="resumen-item">
-              <span class="resumen-label">Producto</span>
-              <span class="resumen-valor" id="detalle-nombre">—</span>
-            </div>
-            <div class="resumen-item">
-              <span class="resumen-label">Precio unitario</span>
-              <span class="resumen-valor" id="detalle-precio">—</span>
+            <div class="carrito-header">
+              <h3>🛒 Resumen de Venta</h3>
+              <button class="btn-icon btn-cerrar-carrito" id="btn-cerrar-carrito" type="button" title="Cerrar">✕</button>
             </div>
 
-            <!-- Cantidad con stepper -->
-            <div class="form-group" style="margin:16px 0;">
-              <label>Cantidad</label>
-              <div class="qty-stepper">
-                <button id="btn-qty-minus" type="button">−</button>
-                <input type="number" id="venta-cantidad" value="1" min="1" />
-                <button id="btn-qty-plus" type="button">+</button>
+            <!-- Lista de items del carrito -->
+            <div id="carrito-items" class="carrito-items">
+              <div class="carrito-vacio">
+                <span class="carrito-vacio-icon">🛒</span>
+                <p>Tu carrito está vacío</p>
+                <span>Selecciona productos del catálogo</span>
               </div>
             </div>
 
-            <!-- Método de pago como pills -->
-            <div class="form-group" style="margin-bottom:16px;">
-              <label>Método de pago *</label>
-              <div class="pago-pills" id="pago-pills">
-                <button class="pago-pill" data-valor="Efectivo" type="button">💵 Efectivo</button>
-                <button class="pago-pill" data-valor="Nequi" type="button">💜 Nequi</button>
-                <button class="pago-pill" data-valor="Daviplata" type="button">🔴 Daviplata</button>
-                <button class="pago-pill" data-valor="Tarjeta" type="button">💳 Tarjeta</button>
+            <!-- Toggle Domicilio -->
+            <div class="domicilio-toggle">
+              <div class="domicilio-info">
+                <span class="domicilio-label">🏍️ Envío a Domicilio</span>
+                <span class="domicilio-desc">+ $1.000 por cada unidad</span>
               </div>
-              <input type="hidden" id="venta-metodo-pago" />
+              <label class="switch">
+                <input type="checkbox" id="toggle-domicilio" />
+                <span class="slider"></span>
+              </label>
             </div>
 
-            <div class="resumen-item resumen-total" style="padding-top:12px;">
-              <span class="resumen-label" style="font-size:1rem;font-weight:700;">Total</span>
-              <span class="resumen-valor" id="detalle-total">—</span>
+            <!-- Resumen de totales -->
+            <div class="carrito-totales">
+              <div class="resumen-item">
+                <span class="resumen-label">Subtotal</span>
+                <span class="resumen-valor" id="carrito-subtotal">$0</span>
+              </div>
+              <div class="resumen-item" id="fila-domicilio" style="display:none;">
+                <span class="resumen-label">🏍️ Domicilio</span>
+                <span class="resumen-valor" id="carrito-domicilio">$0</span>
+              </div>
+              <div class="resumen-item resumen-total">
+                <span class="resumen-label">Total</span>
+                <span class="resumen-valor" id="carrito-total">$0</span>
+              </div>
             </div>
 
-            <div class="venta-actions">
-              <button class="btn btn-primary" id="btn-confirmar-venta">✅&nbsp; Confirmar Venta</button>
-              <button class="btn btn-ghost" id="btn-cancelar-venta">Cancelar</button>
+            <!-- Botones de acción -->
+            <div class="carrito-actions">
+              <button class="btn btn-cobrar" id="btn-cobrar" type="button" disabled>
+                💰 Cobrar
+              </button>
+              <button class="btn btn-ghost btn-limpiar" id="btn-limpiar-carrito" type="button">
+                🗑️ Vaciar Carrito
+              </button>
             </div>
           </div>
         </div>
@@ -242,6 +258,61 @@
       <div class="modal-actions">
         <button class="btn btn-ghost" id="btn-cancelar-modal">Cancelar</button>
         <button class="btn btn-primary" id="btn-guardar-producto">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL: PASARELA DE PAGO ══ -->
+  <div id="modal-pago" class="modal-overlay">
+    <div class="modal modal-pago">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">💰 Pasarela de Pago</h3>
+
+      <!-- Resumen compacto del pedido -->
+      <div class="pago-resumen-pedido" id="pago-resumen-pedido"></div>
+
+      <!-- Totales -->
+      <div class="pago-totales">
+        <div class="resumen-item">
+          <span class="resumen-label">Subtotal</span>
+          <span class="resumen-valor" id="pago-subtotal">$0</span>
+        </div>
+        <div class="resumen-item" id="pago-fila-domicilio" style="display:none;">
+          <span class="resumen-label">🏍️ Domicilio</span>
+          <span class="resumen-valor" id="pago-domicilio">$0</span>
+        </div>
+        <div class="resumen-item resumen-total">
+          <span class="resumen-label">Total a Cobrar</span>
+          <span class="resumen-valor" id="pago-total">$0</span>
+        </div>
+      </div>
+
+      <!-- Método de pago -->
+      <div class="form-group">
+        <label>Método de Pago *</label>
+        <div class="pago-pills" id="pago-pills">
+          <button class="pago-pill" data-valor="Efectivo" type="button">💵 Efectivo</button>
+          <button class="pago-pill" data-valor="Nequi" type="button">💜 Nequi</button>
+          <button class="pago-pill" data-valor="Daviplata" type="button">🔴 Daviplata</button>
+          <button class="pago-pill" data-valor="Tarjeta" type="button">💳 Tarjeta</button>
+        </div>
+      </div>
+
+      <!-- Campo de efectivo recibido (solo visible con Efectivo) -->
+      <div class="form-group pago-efectivo-group" id="pago-efectivo-group" style="display:none;">
+        <label for="pago-recibido">Dinero Recibido (COP)</label>
+        <input type="number" id="pago-recibido" placeholder="Ej: 50000" min="0" step="100" inputmode="numeric" />
+        <div class="pago-cambio" id="pago-cambio-wrap" style="display:none;">
+          <span class="pago-cambio-label">Cambio (Vueltas):</span>
+          <span class="pago-cambio-valor" id="pago-cambio">$0</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btn-cancelar-pago" type="button">Cancelar</button>
+        <button class="btn btn-primary btn-registrar-venta" id="btn-registrar-venta" type="button" disabled>
+          ✅ Registrar Venta
+        </button>
       </div>
     </div>
   </div>

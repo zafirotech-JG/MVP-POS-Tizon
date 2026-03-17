@@ -39,14 +39,10 @@ async function request(method, path, body = null) {
 export const API = {
     auth: {
         login: async (username, password) => {
-            const formData = new URLSearchParams();
-            formData.append('username', username);
-            formData.append('password', password);
-
             const response = await fetch(`${BASE_URL}/api/auth/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
             });
 
             const data = await response.json();
