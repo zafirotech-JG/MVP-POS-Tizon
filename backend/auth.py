@@ -21,7 +21,7 @@ ALGORITHM     = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 8           # duración de una jornada laboral
 
 ADMIN_USER     = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "tizon1234")  # contraseña en texto plano en .env
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "tizon")  # contraseña en texto plano en .env
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
