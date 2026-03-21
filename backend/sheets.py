@@ -103,6 +103,12 @@ def _ensure_productos_categoria_header(ws: gspread.Worksheet) -> None:
     ws.update_cell(1, categoria_col, "categoria")
 
 
+def _get_productos_headers(ws: gspread.Worksheet) -> List[str]:
+    """Retorna headers actuales de Productos, garantizando columna categoria."""
+    _ensure_productos_categoria_header(ws)
+    return ws.row_values(1)
+
+
 # ══════════════════════════════════════════════
 #  PRODUCTOS
 # ══════════════════════════════════════════════
@@ -131,9 +137,18 @@ def get_all_productos_raw() -> List[dict]:
 def add_producto(nombre: str, precio: float, insumos: str, categoria: str) -> dict:
     """Agrega un nuevo producto y retorna el registro creado."""
     ws = _open_sheet("Productos")
-    _ensure_productos_categoria_header(ws)
+    headers = _get_productos_headers(ws)
     nuevo_id = str(uuid.uuid4())
-    row = [nuevo_id, nombre, precio, insumos, categoria, "TRUE"]
+
+    values_by_header = {
+        "id": nuevo_id,
+        "nombre": nombre,
+        "precio": precio,
+        "insumos": insumos,
+        "categoria": categoria,
+        "activo": "TRUE",
+    }
+    row = [values_by_header.get(h, "") for h in headers]
     ws.append_row(row)
     return {
         "id": nuevo_id,
@@ -148,11 +163,24 @@ def add_producto(nombre: str, precio: float, insumos: str, categoria: str) -> di
 def update_producto(producto_id: str, nombre: str, precio: float, insumos: str, categoria: str) -> Optional[dict]:
     """Actualiza nombre, precio, insumos y categoría. Retorna None si no existe."""
     ws = _open_sheet("Productos")
-    _ensure_productos_categoria_header(ws)
+    headers = _get_productos_headers(ws)
     records = ws.get_all_records()
+
+    col_nombre = headers.index("nombre") + 1 if "nombre" in headers else None
+    col_precio = headers.index("precio") + 1 if "precio" in headers else None
+    col_insumos = headers.index("insumos") + 1 if "insumos" in headers else None
+    col_categoria = headers.index("categoria") + 1 if "categoria" in headers else None
+
     for i, record in enumerate(records, start=2):  # fila 1 = cabecera
         if record["id"] == producto_id:
-            ws.update(f"B{i}:E{i}", [[nombre, precio, insumos, categoria]])
+            if col_nombre:
+                ws.update_cell(i, col_nombre, nombre)
+            if col_precio:
+                ws.update_cell(i, col_precio, precio)
+            if col_insumos:
+                ws.update_cell(i, col_insumos, insumos)
+            if col_categoria:
+                ws.update_cell(i, col_categoria, categoria)
             return {
                 "id": producto_id,
                 "nombre": nombre,
